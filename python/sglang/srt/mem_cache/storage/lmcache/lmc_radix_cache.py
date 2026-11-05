@@ -133,9 +133,16 @@ class LMCRadixCache(RadixCache):
         self.load_stream = torch.cuda.Stream()
         self.store_stream = torch.cuda.Stream()
 
-        # MP is the default. To use the in-process layerwise connector,
-        # set ``self._mode = LMCacheMode.IP`` here.
-        self._mode = LMCacheMode.MP
+        # opends-benchmarks: the in-process layerwise connector by default, so
+        # SGLang drives LMCache as vLLM does (one LMCacheEngine from the same
+        # yaml, the GPU KV pools registered with it). SGLANG_LMCACHE_MODE=mp
+        # selects the multi-process connector (an external `lmcache server`).
+        import os as _os
+        self._mode = (
+            LMCacheMode.MP
+            if _os.environ.get("SGLANG_LMCACHE_MODE", "ip").lower() == "mp"
+            else LMCacheMode.IP
+        )
         if self._mode is LMCacheMode.MP:
             if not cli_lmc_cfg:
                 raise ValueError(
